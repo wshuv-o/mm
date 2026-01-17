@@ -1,0 +1,1 @@
+export const C_MSG_PFX = 'client_msg:'

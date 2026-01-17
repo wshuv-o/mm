@@ -1,0 +1,180 @@
+import React, { useContext } from "react";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+} from "react-native";
+import { moderateScale } from "react-native-size-matters";
+import { Text, Divider } from "react-native-paper";
+import { useRouter } from "expo-router";
+import { getFontSize } from "@/utils/fontSize";
+import {
+  AuthFormContainer,
+} from "@/components/auth/AuthFormContainer";
+import { UTIL } from "@/lib/utils";
+import { pick } from "remeda";
+import { IntendedPageCtx } from "@/contexts/ctx";
+import { SignupComponent } from "@/components/auth/SignupComponent";
+
+export default function SignupPage() {
+  const router = useRouter();
+
+  const { modifyData } = useContext(IntendedPageCtx);
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <AuthFormContainer title="Sign up here">
+        <SignupComponent
+          onSuccess={(_, v) => {
+            modifyData((url) => {
+              if (url.current?.match(/payment(?!.*proceed)/)) {
+                url.current = url.current + "?proceed=true";
+              }
+            });
+            router.navigate(
+              `/sign-in?authCreds=${UTIL.encodeB64urlSafe(
+                pick(v, ["email", "password"])
+              )}`
+            );
+          }}
+        ></SignupComponent>
+        {/* OR Divider */}
+        <View style={styles.dividerRow}>
+          <Divider style={styles.divider} />
+          <Text style={styles.orText}>OR</Text>
+          <Divider style={styles.divider} />
+        </View>
+
+        {/* Footer Link */}
+
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={() => router.navigate("/sign-in")}
+        >
+          <View style={styles.buttonTextContainer}>
+            <Text style={styles.footerLink}>Have an existing Account</Text>
+          </View>
+        </TouchableOpacity>
+      </AuthFormContainer>
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+    backgroundColor: "#000",
+  },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingVertical: moderateScale(8),
+    paddingHorizontal: moderateScale(8),
+  },
+  // Logo Row
+  logoRow: {
+    flexDirection: "row",
+    height: moderateScale(44),
+    alignItems: "center",
+    marginBottom: moderateScale(15),
+  },
+  logoImage: {
+    width: moderateScale(41),
+    height: moderateScale(41),
+    marginRight: moderateScale(4),
+  },
+  logoText: {
+    fontSize: moderateScale(30),
+    color: "#FAFAFB",
+    fontFamily: "Poppins",
+    fontWeight: "600",
+  },
+
+  formCard: {
+    width: "100%",
+    maxWidth: moderateScale(280),
+    backgroundColor: "#1a1a1a",
+    borderRadius: moderateScale(12),
+    padding: moderateScale(8),
+
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2A2A2A",
+    marginBottom: moderateScale(12),
+  },
+  formTitle: {
+    fontSize: getFontSize("xlarge"),
+    color: "#FAFAFB",
+    fontFamily: "Poppins",
+    fontWeight: "500",
+    marginBottom: moderateScale(10),
+    textAlign: "center",
+  },
+  errorText: {
+    color: "#D22A38",
+    fontSize: getFontSize("small"),
+    marginBottom: moderateScale(4),
+    textAlign: "center",
+    width: "100%",
+  },
+  input: {
+    width: "100%",
+    height: moderateScale(38),
+    backgroundColor: "#252525",
+    borderRadius: moderateScale(12),
+    marginBottom: moderateScale(15),
+    fontFamily: "Poppins",
+    fontSize: getFontSize("medium"),
+  },
+  signUpButton: {
+    borderRadius: moderateScale(12),
+    marginTop: moderateScale(4),
+    width: "100%",
+  },
+  signUpButtonText: {
+    fontSize: getFontSize("small"),
+    fontFamily: "Poppins",
+  },
+  dividerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: moderateScale(6),
+    width: "100%",
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#44444F",
+  },
+  orText: {
+    color: "#92929D",
+    fontSize: getFontSize("small"),
+    fontFamily: "Poppins",
+    marginTop: moderateScale(10),
+  },
+
+  dividerS: {
+    backgroundColor: "#44444F",
+    height: 1,
+    width: "100%",
+  },
+  footerButton: {
+    backgroundColor: "#1C1C1C",
+
+    borderRadius: moderateScale(4),
+    alignItems: "center",
+    width: "100%",
+  },
+  buttonTextContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: moderateScale(10),
+  },
+  footerLink: {
+    color: "white",
+    fontFamily: "Poppins",
+    fontSize: getFontSize("small"),
+  },
+});

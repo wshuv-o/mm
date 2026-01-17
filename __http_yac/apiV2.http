@@ -1,0 +1,429 @@
+//------------------CAUTION! this api doc is outdated and will not be maintained anymore-----------
+//global vars
+@port={{PORT}}
+@domain=10-10-10-6.nip.io:3334
+// root host, will be used by default for hostless endpoints in this file
+@host=http://{{domain}}/api
+@orgDomain=dorg.{{domain}}
+@orgHost=http://{{orgDomain}}/api
+@u=user1
+@uMail={{u}}@email.com
+@adminUMail=admin_007@email.com
+@pw=password
+{{
+  exports.defaultHeaders = {
+    'Content-Type': 'application/json',
+  };
+}}
+//----------------------------------------------ORG MODULE---------------------------------------------------
+### 0. create a new organization
+POST /orgs
+Content-Type: multipart/form-data; boundary=xyz
+
+--xyz
+Content-Disposition: form-data; name="name"
+
+demo org ff
+--xyz
+Content-Disposition: form-data; name="domain"
+
+{{orgDomain.replace(/:.*/,'')}}
+--xyz
+Content-Disposition: form-data; name="logo";filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--xyz--
+
+### 1. register user. should temporarily cache the email password for next step (login).this endpoint won't return any auth token after successfull registration.you have to use the login endpoint explicitly.this segregation will help us to maintain DRY & SOC principle.
+POST {{orgHost}}/register
+Content-Type: multipart/form-data; boundary=xyz
+
+--xyz
+Content-Disposition: form-data; name="fullName"
+
+{{u}}
+--xyz
+Content-Disposition: form-data; name="userName"
+
+{{u}}
+--xyz
+Content-Disposition: form-data; name="email"
+
+{{uMail}}
+--xyz
+Content-Disposition: form-data; name="password"
+
+{{pw}}
+--xyz
+Content-Disposition: form-data; name="avatar";filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--xyz
+Content-Disposition: form-data; name="coverImage";filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--xyz--
+
+### 2. login.will return auth token.save it securely.you need to pass it with every request later on
+# @name  auth
+POST {{orgHost}}/login
+...defaultHeaders
+{
+	"email": "{{uMail}}",
+	"password": "{{pw}}"
+}
+
+{{
+const authHeader = { Authorization: `Bearer ${auth.value}` };
+const defaultHeadersWithAuthToken = { ...defaultHeaders, ...authHeader };
+module.exports = { authHeader, defaultHeadersWithAuthToken };
+console.log('auth fetched\n\n', module.exports);
+}}
+### 2.1 login as admin
+# @name  adminAuth
+POST {{orgHost}}/login
+...defaultHeaders
+{
+	"email": "{{adminUMail}}",
+	"password": "{{pw}}"
+}
+
+{{
+const adminAuthHeader = { Authorization: `Bearer ${adminAuth.value}` };
+const defaultHeadersWithAdminAuthToken = { ...defaultHeaders, ...adminAuthHeader };
+module.exports = { adminAuthHeader, defaultHeadersWithAdminAuthToken };
+console.log('auth fetched\n\n', module.exports);
+}}
+### 3. get new user's whereabouts.you will get to know about whether the user has signed the initial form,the subscription status and other important informations.if the user hasn't signed the initial form move along the "4.1" branch from now on.otherwise you are free to use  other endpoints given that the logged in user have enough permissons based on his/her role.
+# @ref  auth
+GET {{orgHost}}/who_am_i
+...authHeader
+
+### 4.1 collect the e-sign template in pdf format (the download link)
+# @ref  auth
+GET {{orgHost}}/e_sign_template
+...authHeader
+
+### 4.1.1 upload the signed document.from now on "3" will return an attribute on the response which will indicate that the signed document is in verification phase
+# @ref  auth
+POST {{orgHost}}/signed_docs
+...authHeader
+Content-Type: multipart/form-data; boundary=xyz
+
+--xyz
+Content-Disposition: form-data; name="doc"; filename="test.pdf"
+Content-Type: application/pdf
+
+< ./test.pdf
+--xyz--
+
+### 4.1.2 approve the signed document
+# @ref  adminAuth
+PATCH {{orgHost}}/signed_docs/15
+...defaultHeadersWithAdminAuthToken
+
+{
+	"approved": "true"
+}
+
+
+//----------------------------------------------COMMUNITY MODULE---------------------------------------------------
+
+### create community
+# @ref  adminAuth
+POST {{orgHost}}/communities
+...defaultHeadersWithAdminAuthToken
+
+{
+	"name": "community 1"
+}
+
+### get communities
+# @ref  adminAuth
+GET {{orgHost}}/communities
+...adminAuthHeader
+
+### create a membership request
+# @ref  auth
+POST {{orgHost}}/community_memberships
+...defaultHeadersWithAuthToken
+
+{
+  "communityId": 1
+}
+
+### get all members
+# @ref  adminAuth
+GET {{orgHost}}/community/1/memberships
+...adminAuthHeader
+
+### add a member to a community by accepting membership request
+# @ref  adminAuth
+PATCH {{orgHost}}/community_memberships/3
+...defaultHeadersWithAdminAuthToken
+
+{
+  "status": "approved"
+}
+
+### delete a membership from a community
+# @ref  adminAuth
+DELETE {{orgHost}}/community_memberships/2
+...adminAuthHeader
+
+###  create a post in a community
+# @ref  auth
+POST {{orgHost}}/community_posts
+...defaultHeadersWithAuthToken
+
+{
+	"content": "A post",
+	"communityId":1
+}
+
+### get posts from all the communities where the user has membership.sorted by createdAt descending.paginated as well (includes next page url in the response)
+
+# @ref  auth
+GET {{orgHost}}/community_posts?v2=true&&page=7
+...authHeader
+
+### edit a post.note:reactions,shariing link etc. will also be handled by this one.
+# @ref  auth
+PATCH {{orgHost}}/community_posts/1
+...defaultHeadersWithAuthToken
+
+{
+  "interactions": {
+    "loved": true,
+    "shared": true,
+    "bookmarked": false
+  }
+}
+
+### add a comment to a post
+# @ref  auth
+POST {{orgHost}}/post_comments
+...defaultHeadersWithAuthToken
+
+{
+	"content": "first  comment",
+	"postId": 1,
+	"parentId": null
+}
+
+### edit a comment. Note: Reactions, etc., will also be handled by this.
+
+
+//----------------------------------------------COURSE MODULE--------------------------------------------------
+
+### create a course  with chapters and lessons
+# @ref  adminAuth
+POST {{orgHost}}/courses
+...defaultHeadersWithAdminAuthToken
+
+{
+  "title": "A course",
+  "coverImage": "https://example.com/image.jpg",
+  "description": "Course description",
+  "chapters": [
+    {
+      "title": "Chapter 1",
+      "classes": [
+        {
+          "title": "Introduction to Topic",
+          "scheduledAt": "2025-02-01 10:30:00"
+        }
+      ]
+    }
+  ]
+}
+
+
+### update a course with chapters and lessons
+# @ref  adminAuth
+PATCH {{orgHost}}/courses/2
+...defaultHeadersWithAdminAuthToken
+
+{
+  "title": "A course",
+  "coverImage": "https://example.com/image.jpg",
+  "description": "Course description",
+  "chapters": [
+    {"id":23,
+      "title": "Chapter 1",
+      "classes": [
+        {"id":23,
+          "title": "Introduction to Topic 35554rr55",
+         "scheduledAt": "2025-02-01 10:30:00"
+        }
+      ]
+    }
+  ]
+}
+
+### add an enrollment/student to a course
+
+### remove an enrollment/student from a course
+
+### get all courses.supports filters like enrolled only etc.
+# @ref  auth
+GET {{orgHost}}/courses
+...authHeader
+
+### get a single course with chapters and lessons.
+# @ref  auth
+GET {{orgHost}}/courses/2
+...authHeader
+
+###
+//----------------------------------------------USER MODULE-----------------------------------------------------
+
+### update logged in user's data and preferences
+# @ref  auth
+PATCH {{orgHost}}/update_user
+...authHeader
+Content-Type: multipart/form-data; boundary=WebKitFormBoundaryXYZ
+
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[fullName]"
+
+user1
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[userName]"
+
+user133
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[email]"
+
+user133@email.com
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[phoneNumber]"
+
+null
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[website]"
+
+gggg.jff
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[skills]"
+
+null
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[bio]"
+
+'hhh'
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[avatar]"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="info[coverImage]"; filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[profileVisibility]"
+
+private
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[showOnlineStatus]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifEngagedPostComment]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifEngagedPostComment]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifEngagedPostReact]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifEngagedPostReact]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifMyCommentReact]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifMyCommentReact]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifMyCommentReply]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifMyCommentReply]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifProfilePost]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifProfilePost]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifPostMention]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifPostMention]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifCommentMention]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifCommentMention]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[appNotifSecurityAlert]"
+
+false
+--WebKitFormBoundaryXYZ
+Content-Disposition: form-data; name="preferences[mailNotifSecurityAlert]"
+
+false
+--WebKitFormBoundaryXYZ--
+
+
+
+//----------------------------------------------ORDER/PAYMENT MODULE---------------------------------------------------
+
+
+//----------------------------------------------MISCELLANEOUS-------------------------------------------------------------------
+
+
+### endpoint to test  request data.supports file as well
+POST /echo
+Content-Type: multipart/form-data; boundary=WebKitFormBoundary
+
+--WebKitFormBoundary
+Content-Disposition: form-data; name="text"
+
+invoiceText
+--WebKitFormBoundary
+Content-Disposition: form-data; name="invoice";filename="file.txt"
+Content-Type: text/plain
+
+< ./file.txt
+--WebKitFormBoundary
+Content-Disposition: form-data; name="img";filename="test.jpg"
+Content-Type: image/jpeg
+
+< ./test.jpg
+--WebKitFormBoundary--
+

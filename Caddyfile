@@ -1,0 +1,64 @@
+# directive :::= the first  word before starting curly brace.there can be parameters beetween them as well.inside the curly brace there can be subdirective.they have the same aforementioned structure.but directives cannot be used within other directives unless noted in the doc.directives resmbles like a js function almost.they can also be a one-liner probably like the header_up below replace,reverse_proxy,route  are example from below.the best visual guide to understand the config structure https://caddyserver.com/old/resources/images/caddyfile-visual.png
+# matcher ::::= they are the tokens/conditionals which dictates whether a directive should be executed or not.they can be named or directly inserted in case of only path matcher.caddy don't require to include matcher name for some matchers like path (doesn't apply when creating named matchers).named matchers starts with @.the word after @ is the name.we can combine multiple matchers onside curly brace after the var name.named matchers can be reused.they can also be rwritten as CEL expression.the front  matcher below has an alternative in CEL expression `!path('/bkd*')`.there many kins of matcher.path,path_regex,header etc.
+# global options can be written in an unanmed directive.see the top one below.
+# we can pass env vars to caddy.can set a default value in case not passed.like $GATE is a envvar with a default value of :4000 in {$GATE::4000}.
+# caddy has convenient context-aware placeholders like {http.request.host}.find more on https://caddyserver.com/docs/conventions#placeholders and https://caddyserver.com/docs/caddyfile/concepts#placeholders
+# we can create custom variables to store string,numbers etc. with the vars directive.see https://caddyserver.com/docs/caddyfile/directives/vars
+# best way to read caddy official doc is to look at the syntax of directive/matchers first.it will give us a good idea about where and how we should put our params,instructions,expressions etc.
+# this caddyfile makes caddy listen on a configured port,then proxy request to port 3000 and 5000 upon match.it modifies the response body recieved from upstream to replace external url.
+# we are using  "replace_response" caddy module in this config.it provides the replace directive.we can replace string from response body using this directive.can also use regex and capture group.very powerfull indeed!.see more https://github.com/caddyserver/replace-response
+# take note caddys regex engine powered by golang doesnot support looahead/behind.we can probably use override technique to workaround this like on the replace response block. 
+# as of writing replace_response module doesnot support context-aware placeholders.only global ones can be used. https://github.com/caddyserver/replace-response/issues/24
+# disabling auto https.just prefix the handler with "http://" .https://caddy.community/t/disable-automatic-https/7339
+# some useful caddy commands::>
+# caddy run -w (run caddy in watch mode.will restart automatically when caddyfile changes)
+# solution to the issue of not starting the proxy if anything already listening at port 80 https://stackoverflow.com/a/76424379
+# caddy fmt --overwrite (format caddyfile and overwrite instead of echoing the formatted config)
+{
+	order replace after encode # https://caddyserver.com/docs/caddyfile/options#order
+	auto_https disable_redirects # https://caddyserver.com/docs/caddyfile/options#auto-https
+	log {
+		# output discard
+		level ERROR
+	}
+	admin :2020
+}
+# 2001 for non https and 2000 for https only .2001 is easier to expose via tunneling services like ngrok,localtunnel etc.remember expo hot reload won't work with 2001 unless tunnelized.
+
+:2001 :2000 {
+	replace stream {
+		app.ceosociety.io ultimately-pro-raccoon.ngrok-free.app
+	}
+	@backend path /firebase-messaging* /api/*
+	@prod_files path /uploads* /priv_uploads*
+	@frontend path /*
+
+	reverse_proxy @backend 127.0.0.1:3333 {
+		header_up Host app.ceosociety.io
+		header_up x-forwarded-host app.ceosociety.io
+	}
+
+	reverse_proxy @prod_files https://app.ceosociety.io {
+		header_up Host app.ceosociety.io
+		header_up x-forwarded-host app.ceosociety.io
+	}
+
+	intercept @prod_files {
+		@notfound status 404
+		handle_response @notfound {
+			reverse_proxy 127.0.0.1:3333 {
+				header_up Host app.ceosociety.io
+				header_up x-forwarded-host app.ceosociety.io
+			}
+		}
+	}
+	reverse_proxy /onboarding* http://127.0.0.1:8080 {
+		header_up Accept-Encoding identity
+	}
+
+	reverse_proxy @frontend http://127.0.0.1:8081 {
+		header_up Accept-Encoding identity
+		header_up Origin http://localhost:8081
+		header_up Referer http://localhost:8081
+	}
+}

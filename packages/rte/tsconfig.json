@@ -1,0 +1,48 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+
+    "module": "commonjs",
+
+    "types": ["react", "jest"],
+
+    "lib": [
+      "es7"
+    ],
+
+    "declaration": true,
+
+    "outDir": "./dist",
+
+    "sourceMap": true,
+
+    "strict": true,
+
+    "esModuleInterop": true,
+
+    "allowSyntheticDefaultImports": true,
+
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+
+    "baseUrl": "./src",
+
+    "paths": {
+      "@mention-hooks": ["./hooks"],
+      "@mention-types": ["./types"],
+      "@mention-utils": ["./utils"]
+    },
+
+    "jsx": "react"
+  },
+
+  "include": [
+    "./src/**/*"
+  ],
+
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
