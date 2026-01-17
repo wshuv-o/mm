@@ -513,13 +513,17 @@ export default function LeftSidebar({ buttons, courseId, onContentGenerate, onWi
 
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const groupedButtons = entries(groupByProp(buttons, 'chapterPublicId'))
-  .sort(([, groupA], [, groupB]) => {
-    // Take the chapter.order from the first button in each group (they should be the same)
-    const orderA = groupA[0]?.chapter?.order ?? 0;
-    const orderB = groupB[0]?.chapter?.order ?? 0;
-    return orderB - orderA; // descending → higher number first
-  });
+  const buttonsWithTitle = buttons.map(btn => ({
+    ...btn,
+    chapterTitle: btn.chapter.title
+  }));
+  const groupedButtons = entries(groupByProp(buttonsWithTitle, "chapterTitle")).sort(
+    ([, groupA], [, groupB]) => {
+      const orderA = groupA[0]?.chapter?.order ?? 0;
+      const orderB = groupB[0]?.chapter?.order ?? 0;
+      return orderB - orderA;
+    }
+  );
   const [fontsLoaded] = useFonts({
     'InterDisplay-Regular': require('@/assets/fonts/InterDisplay-Regular.ttf'),
     'InterDisplay-SemiBold': require('@/assets/fonts/InterDisplay-SemiBold.ttf'),
