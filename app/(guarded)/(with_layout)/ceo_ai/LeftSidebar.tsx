@@ -513,7 +513,7 @@ export default function LeftSidebar({ buttons, courseId, onContentGenerate, onWi
 
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
-  const groupedButtons = entries(groupByProp(buttons, 'moduleName'))
+  const groupedButtons = entries(groupByProp(buttons, 'chapterPublicId'))
   .sort(([, groupA], [, groupB]) => {
     // Take the chapter.order from the first button in each group (they should be the same)
     const orderA = groupA[0]?.chapter?.order ?? 0;

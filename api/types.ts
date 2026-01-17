@@ -510,6 +510,7 @@ export type AiConfig = {
     coursePublicId: string;
     courseName: string;
     chapterNumber: number;
+    chapterPublicId: string;
     moduleName: string;
     promptTemplate: string;
     contextKey: string;
